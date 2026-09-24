@@ -45,6 +45,31 @@ class OccupancySeg(BaseModel):
     end_cm: float
 
 
+class OverdueOrderOut(BaseModel):
+    id: int
+    ticket_code: str
+    garment_name: str
+    due_at: datetime
+    status: str
+    rail_id: int | None = None
+    rail_label: str | None = None
+    start_cm: float | None = None
+    end_cm: float | None = None
+    model_config = {"from_attributes": True}
+
+
+class ForceEjectOut(BaseModel):
+    """强制出杆结果：带回被释放的杆编号与原起止区间，便于对账。"""
+
+    order_id: int
+    ticket_code: str
+    status: str
+    rail_id: int
+    rail_label: str
+    start_cm: float
+    end_cm: float
+
+
 class OccupancyOut(BaseModel):
     rail_id: int
     label: str

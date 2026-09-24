@@ -252,6 +252,9 @@ button {
 }
 .mono { font-family: "IBM Plex Mono", monospace; }
 .err { color: #ff9b7a; } .ok { color: #d4c08a; }
+.hint { color: #8a7a66; font-size: .85rem; }
+button:disabled { opacity: .55; cursor: default; }
+.btn-danger { background: #8a3b2a; color: #f5e9dc; }
 
 .ruler-wrap {
   background: transparent;
