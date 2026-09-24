@@ -245,6 +245,8 @@ button {
   background: var(--hang-copper); color: #2a1608; font-weight: 700;
   border: none; cursor: pointer;
 }
+button.danger { background: #a23b2e; color: #f7ece4; }
+button:disabled { opacity: .55; cursor: default; }
 .table { width: 100%; border-collapse: collapse; }
 .table th, .table td {
   border-bottom: 1px solid var(--line); padding: .5rem .35rem;

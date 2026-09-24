@@ -28,6 +28,10 @@ class OrderOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class OverdueOrderOut(OrderOut):
+    occupying: bool
+
+
 class HangRequest(BaseModel):
     order_id: int
     rail_id: int | None = None
@@ -35,6 +39,22 @@ class HangRequest(BaseModel):
 
 class PickupRequest(BaseModel):
     ticket_code: str
+
+
+class ForceRemoveRequest(BaseModel):
+    order_id: int
+
+
+class ReleasedPlacement(BaseModel):
+    rail_id: int
+    rail_label: str
+    start_cm: float
+    end_cm: float
+
+
+class ForceRemoveOut(BaseModel):
+    order: OrderOut
+    released: list[ReleasedPlacement]
 
 
 class OccupancySeg(BaseModel):

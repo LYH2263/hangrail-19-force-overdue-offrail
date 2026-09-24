@@ -7,12 +7,16 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.models import HangRail, RailPlacement, Store, WorkOrder
 from app.schemas.schemas import (
+    ForceRemoveOut,
+    ForceRemoveRequest,
     HangRequest,
     OccupancyOut,
     OccupancySeg,
     OrderOut,
+    OverdueOrderOut,
     PickupRequest,
     RailOut,
+    ReleasedPlacement,
     StoreOut,
 )
 from app.services.rail_engine import Segment, first_fit
@@ -141,6 +145,59 @@ def overdue_scan(db: Session = Depends(get_db)):
     return marked
 
 
-@api_router.get("/overdue", response_model=list[OrderOut])
+@api_router.get("/overdue", response_model=list[OverdueOrderOut])
 def overdue_list(db: Session = Depends(get_db)):
-    return db.scalars(select(WorkOrder).where(WorkOrder.status == "overdue").order_by(WorkOrder.due_at)).all()
+    overdue = db.scalars(
+        select(WorkOrder).where(WorkOrder.status == "overdue").order_by(WorkOrder.due_at)
+    ).all()
+    occupying_ids = set(
+        db.scalars(select(RailPlacement.order_id).where(RailPlacement.active == 1)).all()
+    )
+    return [
+        OverdueOrderOut(
+            id=o.id,
+            store_id=o.store_id,
+            ticket_code=o.ticket_code,
+            garment_name=o.garment_name,
+            length_cm=o.length_cm,
+            status=o.status,
+            due_at=o.due_at,
+            hung_at=o.hung_at,
+            occupying=o.id in occupying_ids,
+        )
+        for o in overdue
+    ]
+
+
+@api_router.post("/overdue/force-remove", response_model=ForceRemoveOut)
+def overdue_force_remove(body: ForceRemoveRequest, db: Session = Depends(get_db)):
+    """店员清杆用的强制出杆：不验取件码，仅限已到期且仍占用挂杆的 hung/overdue 工单。"""
+    order = db.get(WorkOrder, body.order_id)
+    if not order:
+        raise HTTPException(404, "工单不存在")
+    if order.due_at >= datetime.utcnow():
+        raise HTTPException(400, "工单未到期，不可强制出杆")
+    if order.status not in ("hung", "overdue"):
+        raise HTTPException(400, "工单状态不可强制出杆")
+    placements = db.scalars(
+        select(RailPlacement).where(RailPlacement.order_id == order.id, RailPlacement.active == 1)
+    ).all()
+    if not placements:
+        raise HTTPException(400, "工单未占用挂杆，无需出杆")
+
+    released: list[ReleasedPlacement] = []
+    for p in placements:
+        rail = db.get(HangRail, p.rail_id)
+        released.append(
+            ReleasedPlacement(
+                rail_id=p.rail_id,
+                rail_label=rail.label if rail else "",
+                start_cm=p.start_cm,
+                end_cm=p.end_cm,
+            )
+        )
+        p.active = 0
+    order.status = "overdue"
+    db.commit()
+    db.refresh(order)
+    return ForceRemoveOut(order=order, released=released)
